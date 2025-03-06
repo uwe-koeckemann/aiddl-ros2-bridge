@@ -25,7 +25,7 @@ class ServiceCallServer(FunctionServer, Node):
         ros_topic = self.get_parameter('ros_topic').get_parameter_value().string_value
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
 
-        logging.info(f'Starting service for {ros_srv_class_str} on topic "{ros_topic}" from AIDDL gRPC service port {grpc_port}')
+        self.get_logger().info(f'Starting service for {ros_srv_class_str} on topic "{ros_topic}" from AIDDL gRPC service port {grpc_port}')
 
         converter_class = load_class_from_string(converter_class_str)
         ros_srv_class = load_class_from_string(ros_srv_class_str)
@@ -52,18 +52,15 @@ class ServiceCallServer(FunctionServer, Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    logging.info('Creating service server...')
     server = ServiceCallServer()
 
     def exit_handler():
-        logging.info('Closing down...')
+        server.get_logger().info('Closing down...')
         server.server.stop(2).wait()
-        logging.info('Done.')
 
     atexit.register(exit_handler)
-    logging.info('Starting server...')
+    self.get_logger().info('Starting server...')
     server.start()
-    logging.info('Running.')
 
     rclpy.spin(server)
     server.destroy_node()

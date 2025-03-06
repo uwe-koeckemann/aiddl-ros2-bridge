@@ -26,7 +26,7 @@ class TopicSenderServer(SenderServer, Node):
         ros_topic = self.get_parameter('ros_topic').get_parameter_value().string_value
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
 
-        logging.info(f'Starting sender for {ros_msg_class_str} to topic "{ros_topic}" from AIDDL gRPC receiver port {grpc_port}')
+        self.get_logger().info(f'Starting sender for {ros_msg_class_str} to topic "{ros_topic}" from AIDDL gRPC receiver port {grpc_port}')
 
         converter_class = load_class_from_string(converter_class_str)
         ros_msg_class = load_class_from_string(ros_msg_class_str)
@@ -39,28 +39,24 @@ class TopicSenderServer(SenderServer, Node):
 
     def Send(self, request, context):
         if self.verbose:
-            logging.info(f"Sending: {request}")
+            self.get_logger().info(f"Sending: {request}")
         ros_msg = self.f_convert(request)
         if self.verbose:
-            logging.info(f"Converted to: {ros_msg}")
+            self.get_logger().info(f"Converted to: {ros_msg}")
         self.pub.publish(ros_msg)
         return empty_pb2.Empty()
 
 
 def main(args=None):
     rclpy.init(args=args)
-    logging.info('Creating sender server...')
     server = TopicSenderServer()
 
     def exit_handler():
-        logging.info('Closing down...')
+        server.get_logger().info('Closing down...')
         server.server.stop(2).wait()
-        logging.info('Done.')
 
     atexit.register(exit_handler)
-    logging.info('Starting server...')
     server.start()
-    logging.info('Running.')
 
     rclpy.spin(server)
     server.destroy_node()

@@ -118,7 +118,48 @@ Each of the following examples creates a node of a different type and assumes th
 
         ros2 run aiddl_ros2_bridge receiver --ros-args -r __node:=my_pose_receiver --params-file test_params.yaml
 
+## Example: Using a ROS2 Launch File
+
+Connecting AIDDL to ROS2 may require many nodes and starting them individually is not practical.
+In this case it is easiest to write a ROS2 launch file. This contains essentially the same information as
+the YAML files above, but also specifies the package, executable, name, and namespace. As a result this information
+is not needed on the command-line level anymore.
+
+For brevity, we include only a single node in the following example. 
+
+1. Create a file `my_launch_file.py` and add the following lines:
+
+        from launch import LaunchDescription
+        from launch.actions import DeclareLaunchArgument
+        from launch.substitutions import LaunchConfiguration
+        from launch_ros.actions import Node
+
+        def generate_launch_description():
+           return LaunchDescription([
+              Node(
+                 package='aiddl_ros2_bridge',
+                 executable='actor',
+                 name='move',
+                 namespace='robot1',
+                 parameters=[
+                    {
+                        'grpc_port': 8065,
+                        'ros_topic': '/robot1/navigate_to_pose',
+                        'converter_class': 'aiddl_external_ros2.action.nav2.NavigateToPoseConverter',
+                        'ros_class': 'nav2_msgs.action.NavigateToPose'
+                    }
+                 ]
+              ),
+           ])
+
+2. Run all nodes in the file with:
+
+        ros2 launch my_launch_file.py
+
 ## List of Converters
+
+To avoid maintaining information twice, we refer to the documentation of the `aiddl-external-ros2` Python package
+which can be found here.
 
 **TODO:** Add link to `aiddl_external_ros2` README detailing available converter class names.
 

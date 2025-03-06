@@ -32,7 +32,7 @@ class TopicReceiverServer(ReceiverServer, Node):
 
         super(TopicReceiverServer, self).__init__(grpc_port)
 
-        print(f'Starting receiver for {ros_msg_class_str} from topic "{ros_topic}" to AIDDL gRPC receiver port {grpc_port}')
+        self.get_logger().info(f'Starting receiver for {ros_msg_class_str} from topic "{ros_topic}" to AIDDL gRPC port {grpc_port}')
     
         self.f_convert = lambda x: converter_class.ros2aiddl(x)
         # rospy.Subscriber(ros_topic, ros_msg_type, self._callback)
@@ -47,7 +47,6 @@ class TopicReceiverServer(ReceiverServer, Node):
             pass
 
         self.queue_lock = True
-        print(data)
         self.message_queue.append(data)
         self.queue_lock = False
 
@@ -95,15 +94,12 @@ def main(args=None):
     server = TopicReceiverServer()
 
     def exit_handler():
-        print('Closing down...')
+        server.get_logger().info('Closing down...')
         server.server.stop(2).wait()
-        print('Done.')
         
     atexit.register(exit_handler)
 
-    print('Starting server...')
     server.start()
-    print('Running.')
     rclpy.spin(server)
 
 

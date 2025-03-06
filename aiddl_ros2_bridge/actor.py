@@ -4,6 +4,7 @@ import logging
 import rclpy
 import atexit
 
+from aiddl_core.representation import Str
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
@@ -34,8 +35,9 @@ class ActionlibActorServer(ActorServer, Node):
         ros_topic = self.get_parameter('ros_topic').get_parameter_value().string_value
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
 
-        logging.info(
-            f'Starting actor for {ros_action_class_str} to topic "{ros_topic}" from AIDDL gRPC receiver port {grpc_port}')
+        self.get_logger().info(
+            f'Starting actor for {ros_action_class_str} on topic "{ros_topic}" with gRPC port {grpc_port}'
+        )
 
         converter_class = load_class_from_string(converter_class_str)
 
@@ -69,15 +71,13 @@ class ActionlibActorServer(ActorServer, Node):
         self.f_is_supported = f_is_supported
 
     def _feedback_handler(self, fb):
-        print("Handling feedback...")
-        print(fb)
+        self.get_logger().debug(f'Action feedback: {fb}')
         self.goal_status = GoalStatus.STATUS_EXECUTING
         if self.f_extract_feedback is None:
             return None
         self.feedback = self.f_extract_feedback(fb)
 
     def _response_handler(self, future):
-        print("Handling response...")
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.goal_status = GoalStatus.STATUS_ERROR
@@ -88,32 +88,28 @@ class ActionlibActorServer(ActorServer, Node):
         self._get_result_future.add_done_callback(self._result_handler)
 
     def _result_handler(self, future):
-        print("Handling result...")
         result = future.result()
-        print(result)
-        self.goal_status = GoalStatus.STATUS_SUCCEEDED # result.status
+        self.get_logger().debug(f'Action result: {result}')
+        self.goal_status = result.status # GoalStatus.STATUS_SUCCEEDED # result.status
         self.result = self.f_extract_result(result)
 
     def IsSupported(self, request, context):
         is_supported = self.f_is_supported(request)
-        print('Is %s supported? %s' % (str(request), str(is_supported)))
         r = actor_pb2.Supported(is_supported=is_supported)
-        print('Response:', r)
+        self.get_logger().debug(f'IsSupported({request}) -> {is_supported}')
         return r
 
     def Dispatch(self, request, context):
-        print("DISPATCH")
         self.current_id += 1
         self._action_client.wait_for_server()
         goal = self.f_extract_request(request)
-        print(goal)
+        self.get_logger().info(f'Received goal: {goal}')
         self.ros_goal_send_future = self._action_client.send_goal_async(goal, self._feedback_handler)
         self.ros_goal_send_future.add_done_callback(self._response_handler)
         self.goal_status = GoalStatus.STATUS_ACCEPTED
         return self.currentGoalToStatus()
 
     def GetStatus(self, request, context):
-        print("GET STATUS")
         return self.currentGoalToStatus()
 
     def Cancel(self, request, context):
@@ -126,11 +122,7 @@ class ActionlibActorServer(ActorServer, Node):
 
     def currentGoalToStatus(self):
         pb_status = None
-        # status = self._action_client.status
-        # status = self.ros_goal_future.result().status
         status = self.goal_status
-        # status = self.ros_goal_future.result().status
-        print(f"STATUS: {status}")
         if status == GoalStatus.STATUS_ACCEPTED:
             pb_status = actor_pb2.PENDING
         elif status == GoalStatus.STATUS_EXECUTING:
@@ -147,13 +139,13 @@ class ActionlibActorServer(ActorServer, Node):
             pb_status = actor_pb2.ERROR
         else:
             pb_status = actor_pb2.ERROR
-            print("Unknown status:", status)
+            self.get_logger().warning("Unknown ROS2 action status:", status)
 
-        feedback = ""
+        feedback =  Str("")
         if self.result is not None:
-            feedback = str(self.result)
+            feedback = self.result
         elif self.feedback is not None:
-            feedback = str(self.feedback)
+            feedback = self.feedback
 
         r = actor_pb2.Status(
             id=self.current_id,
@@ -169,17 +161,13 @@ def main(args=None):
 
     rclpy.init(args=args)
 
-    print('Creating actor server')
     server = ActionlibActorServer()
     def exit_handler():
-        print('Closing down...')
+        server.get_logger().info('Closing down...')
         server.server.stop(2).wait()
-        print('Done.')
     atexit.register(exit_handler)
 
-    print('Starting server...')
     server.start()
-    print('Running.')
     rclpy.spin(server)
     server.destroy_node()
     rclpy.shutdown()
