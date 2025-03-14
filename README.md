@@ -159,9 +159,8 @@ For brevity, we include only a single node in the following example.
 ## List of Converters
 
 To avoid maintaining information twice, we refer to the documentation of the `aiddl-external-ros2` Python package
-which can be found here.
+which can be found [here](https://pypi.org/project/aiddl-external-ros2/).
 
-**TODO:** Add link to `aiddl_external_ros2` README detailing available converter class names.
 
 ## How to Create Custom Converters
 
